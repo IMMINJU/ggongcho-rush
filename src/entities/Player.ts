@@ -1,12 +1,13 @@
-import { InputState, Position } from '../types'
+import { InputState } from '../types'
 import { GameMap } from '../systems/Map'
+import { PixelRenderer, SPRITES, PALETTES } from '../utils/PixelRenderer'
 
 export class Player {
   x: number
   y: number
-  width: number = 24
-  height: number = 32
-  
+  width: number = 16 // 8 chars * 2 scale
+  height: number = 22 // 11 rows * 2 scale
+
   private vx: number = 0
   private vy: number = 0
   private speed: number = 150
@@ -14,32 +15,44 @@ export class Player {
   private animTimer: number = 0
   private direction: 'down' | 'up' | 'left' | 'right' = 'down'
   private isMoving: boolean = false
-  
+  private facingLeft: boolean = false
+
   nicotine: number = 50
   isArrested: boolean = false
   private isSmoking: boolean = false
   private smokeTimer: number = 0
-  
+  private smokeParticles: Array<{x: number, y: number, age: number, size: number, vx: number}> = []
+
   constructor(x: number, y: number) {
     this.x = x
     this.y = y
   }
-  
+
   update(dt: number, input: InputState, map: GameMap): void {
-    // 흡연 중이면 이동 불가
+    this.updateSmokeParticles(dt)
+
     if (this.isSmoking) {
       this.smokeTimer -= dt
       if (this.smokeTimer <= 0) {
         this.isSmoking = false
+      } else {
+        if (Math.random() < 0.3) {
+          this.smokeParticles.push({
+            x: this.facingLeft ? this.x - 2 : this.x + this.width + 2,
+            y: this.y + 6,
+            age: 0,
+            size: 1 + Math.random() * 2,
+            vx: (this.facingLeft ? -1 : 1) * (0.5 + Math.random() * 0.5)
+          })
+        }
       }
       this.isMoving = false
       return
     }
-    
-    // 입력 처리
+
     this.vx = 0
     this.vy = 0
-    
+
     if (input.up) {
       this.vy = -this.speed
       this.direction = 'up'
@@ -51,36 +64,33 @@ export class Player {
     if (input.left) {
       this.vx = -this.speed
       this.direction = 'left'
+      this.facingLeft = true
     }
     if (input.right) {
       this.vx = this.speed
       this.direction = 'right'
+      this.facingLeft = false
     }
-    
-    // 대각선 이동 정규화
+
     if (this.vx !== 0 && this.vy !== 0) {
       const factor = 1 / Math.sqrt(2)
       this.vx *= factor
       this.vy *= factor
     }
-    
+
     this.isMoving = this.vx !== 0 || this.vy !== 0
-    
-    // 이동 및 충돌 처리
+
     const newX = this.x + this.vx * dt
     const newY = this.y + this.vy * dt
-    
-    // X축 충돌 체크
+
     if (!map.isColliding(newX, this.y, this.width, this.height)) {
       this.x = newX
     }
-    
-    // Y축 충돌 체크
+
     if (!map.isColliding(this.x, newY, this.width, this.height)) {
       this.y = newY
     }
-    
-    // 애니메이션
+
     if (this.isMoving) {
       this.animTimer += dt
       if (this.animTimer > 0.15) {
@@ -91,68 +101,71 @@ export class Player {
       this.animFrame = 0
     }
   }
-  
+
+  private updateSmokeParticles(dt: number): void {
+    for (let i = this.smokeParticles.length - 1; i >= 0; i--) {
+      const p = this.smokeParticles[i]
+      p.age += dt
+      p.x += p.vx * 20 * dt
+      p.y -= 30 * dt
+      p.size += dt * 2
+
+      if (p.age > 1.5) {
+        this.smokeParticles.splice(i, 1)
+      }
+    }
+  }
+
   smoke(): void {
     this.isSmoking = true
-    this.smokeTimer = 1.5 // 1.5초 동안 흡연 애니메이션
+    this.smokeTimer = 1.5
   }
-  
+
   get centerX(): number {
     return this.x + this.width / 2
   }
-  
+
   get centerY(): number {
     return this.y + this.height / 2
   }
-  
+
   render(ctx: CanvasRenderingContext2D): void {
     ctx.save()
-    
-    // 플레이어 몸체 (간단한 픽셀 스타일)
-    const bodyColor = this.isSmoking ? '#8b7355' : '#5c4033'
-    
-    // 그림자
+
     ctx.fillStyle = 'rgba(0, 0, 0, 0.3)'
     ctx.beginPath()
-    ctx.ellipse(this.x + this.width / 2, this.y + this.height, this.width / 2, 4, 0, 0, Math.PI * 2)
+    ctx.ellipse(this.x + this.width / 2, this.y + this.height + 2, this.width / 2 + 2, 3, 0, 0, Math.PI * 2)
     ctx.fill()
-    
-    // 몸통
-    ctx.fillStyle = bodyColor
-    ctx.fillRect(this.x + 4, this.y + 12, 16, 18)
-    
-    // 머리
-    ctx.fillStyle = '#d4a574'
-    ctx.fillRect(this.x + 6, this.y, 12, 14)
-    
-    // 머리카락
-    ctx.fillStyle = '#2a2a2a'
-    ctx.fillRect(this.x + 6, this.y, 12, 4)
-    
-    // 다리 애니메이션
-    ctx.fillStyle = '#3a3a3a'
-    const legOffset = this.isMoving ? Math.sin(this.animFrame * Math.PI / 2) * 3 : 0
-    ctx.fillRect(this.x + 6, this.y + 28, 4, 6 + legOffset)
-    ctx.fillRect(this.x + 14, this.y + 28, 4, 6 - legOffset)
-    
-    // 흡연 중일 때 담배 그리기
+
+    let sprite: string[]
     if (this.isSmoking) {
-      ctx.fillStyle = '#fff'
-      ctx.fillRect(this.x + 20, this.y + 8, 8, 2)
-      ctx.fillStyle = '#ff6b35'
-      ctx.fillRect(this.x + 27, this.y + 7, 2, 3)
-      
-      // 연기 파티클
-      ctx.fillStyle = 'rgba(200, 200, 200, 0.5)'
-      for (let i = 0; i < 3; i++) {
-        const smokeY = this.y + 5 - i * 6 - this.smokeTimer * 10
-        const smokeX = this.x + 28 + Math.sin(smokeY * 0.1) * 3
-        ctx.beginPath()
-        ctx.arc(smokeX, smokeY, 2 + i, 0, Math.PI * 2)
-        ctx.fill()
-      }
+      sprite = SPRITES.player.smoking
+    } else if (this.isMoving) {
+      sprite = this.animFrame % 2 === 0 ? SPRITES.player.walk1 : SPRITES.player.walk2
+    } else {
+      sprite = SPRITES.player.idle
     }
-    
+
+    if (this.facingLeft) {
+      ctx.translate(this.x + this.width, this.y)
+      ctx.scale(-1, 1)
+      PixelRenderer.drawSprite(ctx, 0, 0, sprite, PALETTES.player)
+    } else {
+      PixelRenderer.drawSprite(ctx, this.x, this.y, sprite, PALETTES.player)
+    }
+
     ctx.restore()
+
+    this.renderSmokeParticles(ctx)
+  }
+
+  private renderSmokeParticles(ctx: CanvasRenderingContext2D): void {
+    for (const p of this.smokeParticles) {
+      const alpha = Math.max(0, 1 - p.age / 1.5) * 0.6
+      ctx.fillStyle = `rgba(180, 180, 180, ${alpha})`
+      ctx.beginPath()
+      ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2)
+      ctx.fill()
+    }
   }
 }
