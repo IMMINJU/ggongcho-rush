@@ -235,17 +235,20 @@ body {
   }
 
   .nicotine-bar {
-    width: 200px;
-    bottom: 20px;
+    width: 150px;
+    height: 16px;
+    bottom: auto;
+    top: 15px;
   }
 
   .nicotine-bar-label {
-    bottom: 45px;
+    bottom: auto;
+    top: 35px;
     font-size: 10px;
   }
 
   .hint-text {
-    font-size: 11px;
+    display: none;
   }
 
   .ending-screen h1 {
@@ -255,5 +258,17 @@ body {
   .ending-screen p {
     font-size: 14px;
     max-width: 280px;
+  }
+
+  .joystick-outer {
+    bottom: 30px;
+    left: 20px;
+    width: 100px;
+    height: 100px;
+  }
+
+  .joystick-inner {
+    width: 40px;
+    height: 40px;
   }
 }
