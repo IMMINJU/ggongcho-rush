@@ -7,7 +7,7 @@ import { Police } from '../entities/Police'
 import { Rival } from '../entities/Rival'
 import { Coin } from '../entities/Coin'
 import { Shop } from '../entities/Shop'
-import { SmokerType, ButtQuality } from '../types'
+import { SmokerType } from '../types'
 import { EventSystem } from './EventSystem'
 
 export class EntityManager {
@@ -21,6 +21,7 @@ export class EntityManager {
   private eventSystem: EventSystem
   private smokerSpawnTimer: number = 0
   private smokerSpawnInterval: number = 5
+  private rivalStolenButt: boolean = false
 
   constructor(map: GameMap) {
     this.map = map
@@ -77,9 +78,11 @@ export class EntityManager {
     }
   }
 
-  update(dt: number, player: Player, camera: Camera): { arrested: boolean, eventMessage: string | null } {
+  update(dt: number, player: Player, camera: Camera): { arrested: boolean, eventMessage: string | null, isBeingChased: boolean } {
     let arrested = false
     let eventMessage: string | null = null
+    let isBeingChased = false
+    this.rivalStolenButt = false
     this.eventSystem.update(dt)
     if (this.eventSystem.currentEvent !== 'none') {
       eventMessage = this.eventSystem.getEventMessage()
@@ -96,12 +99,14 @@ export class EntityManager {
     }
     for (const p of this.police) {
       if (p.update(dt, player, false)) arrested = true
+      if (p.isPlayerInSight(player)) isBeingChased = true
     }
     for (const rival of this.rivals) {
       const stolenButt = rival.update(dt, this.butts, this.map.width, this.map.height)
       if (stolenButt) {
         const idx = this.butts.indexOf(stolenButt)
         if (idx > -1) this.butts.splice(idx, 1)
+        this.rivalStolenButt = true
       }
     }
     for (const coin of this.coins) coin.update(dt)
@@ -113,10 +118,10 @@ export class EntityManager {
     }
     if (this.butts.length < 5 && Math.random() < 0.01 * effects.buttSpawnMultiplier) this.spawnRandomButt()
     if (this.coins.length < 3 && Math.random() < 0.005) this.spawnRandomCoin()
-    return { arrested, eventMessage }
+    return { arrested, eventMessage, isBeingChased }
   }
 
-  checkButtCollection(player: Player): ButtQuality | null {
+  checkButtCollection(player: Player): CigaretteButt | null {
     const pb = { x: player.x, y: player.y, width: player.width, height: player.height }
     for (let i = this.butts.length - 1; i >= 0; i--) {
       const butt = this.butts[i]
@@ -124,7 +129,7 @@ export class EntityManager {
       if (this.intersects(pb, butt.getBounds())) {
         butt.isCollected = true
         this.butts.splice(i, 1)
-        return butt.quality
+        return butt
       }
     }
     return null
@@ -145,13 +150,34 @@ export class EntityManager {
     return collected
   }
 
-  checkShopInteraction(player: Player, playerMoney: number): { success: boolean, cost: number } {
+  checkShopInteraction(player: Player, playerMoney: number): { success: boolean, cost: number, nearShop: boolean } {
     for (const shop of this.shops) {
-      if (shop.isPlayerNear(player.x, player.y) && playerMoney >= shop.cigarettePrice) {
-        return { success: true, cost: shop.cigarettePrice }
+      if (shop.isPlayerNear(player.x, player.y)) {
+        if (playerMoney >= shop.cigarettePrice) {
+          return { success: true, cost: shop.cigarettePrice, nearShop: true }
+        }
+        return { success: false, cost: shop.cigarettePrice, nearShop: true }
       }
     }
-    return { success: false, cost: 0 }
+    return { success: false, cost: 0, nearShop: false }
+  }
+
+  checkRivalSteal(): boolean {
+    return this.rivalStolenButt
+  }
+
+  getNearestButt(player: Player): { x: number, y: number, distance: number } | null {
+    let nearest: { x: number, y: number, distance: number } | null = null
+    for (const butt of this.butts) {
+      if (butt.isCollected) continue
+      const dx = butt.x - player.x
+      const dy = butt.y - player.y
+      const distance = Math.sqrt(dx * dx + dy * dy)
+      if (!nearest || distance < nearest.distance) {
+        nearest = { x: butt.x, y: butt.y, distance }
+      }
+    }
+    return nearest
   }
 
   getEntitiesForMinimap() {

@@ -1,4 +1,5 @@
 import { EndingType } from '../types'
+import { Dialogue } from './DialogueSystem'
 
 export class UI {
   private overlay: HTMLDivElement
@@ -6,6 +7,8 @@ export class UI {
   private nicotineFill: HTMLDivElement | null = null
   private nicotineLabel: HTMLDivElement | null = null
   private moneyDisplay: HTMLDivElement | null = null
+  private dialogueBox: HTMLDivElement | null = null
+  private npcDialogueBox: HTMLDivElement | null = null
 
   constructor(overlay: HTMLDivElement) {
     this.overlay = overlay
@@ -45,6 +48,16 @@ export class UI {
     this.moneyDisplay.textContent = '0 won'
     this.overlay.appendChild(this.moneyDisplay)
 
+    // 대사 박스 생성
+    this.dialogueBox = document.createElement('div')
+    this.dialogueBox.className = 'dialogue-box'
+    this.overlay.appendChild(this.dialogueBox)
+
+    // NPC 대사 박스
+    this.npcDialogueBox = document.createElement('div')
+    this.npcDialogueBox.className = 'npc-dialogue-box'
+    this.overlay.appendChild(this.npcDialogueBox)
+
     const hint = document.createElement('div')
     hint.className = 'hint-text'
     hint.textContent = 'WASD to move / Space near shop to buy'
@@ -70,6 +83,34 @@ export class UI {
     if (this.moneyDisplay) {
       this.moneyDisplay.textContent = value + ' won'
     }
+  }
+
+  updateDialogue(dialogue: Dialogue | null, progress: number): void {
+    if (!this.dialogueBox) return
+
+    if (dialogue) {
+      this.dialogueBox.textContent = dialogue.text
+      this.dialogueBox.className = 'dialogue-box visible ' + (dialogue.style || 'thought')
+      this.dialogueBox.style.opacity = String(Math.min(1, progress * 3, (1 - progress) * 3 + 0.5))
+    } else {
+      this.dialogueBox.className = 'dialogue-box'
+      this.dialogueBox.style.opacity = '0'
+    }
+  }
+
+  showNPCDialogue(text: string, screenX: number, screenY: number): void {
+    if (!this.npcDialogueBox) return
+
+    this.npcDialogueBox.textContent = text
+    this.npcDialogueBox.className = 'npc-dialogue-box visible'
+    this.npcDialogueBox.style.left = screenX + 'px'
+    this.npcDialogueBox.style.top = (screenY - 40) + 'px'
+
+    setTimeout(() => {
+      if (this.npcDialogueBox) {
+        this.npcDialogueBox.className = 'npc-dialogue-box'
+      }
+    }, 2500)
   }
 
   showEnding(type: EndingType, onRestart: () => void): void {

@@ -307,3 +307,107 @@ body {
   pointer-events: none;
   display: none;
 }
+
+/* 대사 박스 - 플레이어 내면 독백 */
+.dialogue-box {
+  position: absolute;
+  bottom: 100px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 12px 24px;
+  background: rgba(0, 0, 0, 0.85);
+  border-left: 3px solid #f7c59f;
+  color: #ccc;
+  font-size: 15px;
+  font-style: italic;
+  max-width: 400px;
+  text-align: center;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  pointer-events: none;
+  line-height: 1.5;
+}
+
+.dialogue-box.visible {
+  opacity: 1;
+}
+
+.dialogue-box.thought {
+  color: #aaa;
+  border-left-color: #666;
+}
+
+.dialogue-box.thought::before {
+  content: '"';
+  color: #666;
+}
+
+.dialogue-box.thought::after {
+  content: '"';
+  color: #666;
+}
+
+.dialogue-box.speak {
+  color: #f7c59f;
+  border-left-color: #f7c59f;
+}
+
+.dialogue-box.shout {
+  color: #ff6b6b;
+  border-left-color: #ff4444;
+  font-style: normal;
+  font-weight: bold;
+  animation: shake 0.1s linear infinite;
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(-50%) translateY(0); }
+  25% { transform: translateX(-50%) translateY(-2px); }
+  75% { transform: translateX(-50%) translateY(2px); }
+}
+
+/* NPC 대사 박스 */
+.npc-dialogue-box {
+  position: absolute;
+  padding: 8px 14px;
+  background: rgba(40, 40, 40, 0.9);
+  border-radius: 8px;
+  color: #888;
+  font-size: 12px;
+  max-width: 200px;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  pointer-events: none;
+  transform: translateX(-50%);
+  white-space: nowrap;
+}
+
+.npc-dialogue-box.visible {
+  opacity: 1;
+}
+
+.npc-dialogue-box::after {
+  content: '';
+  position: absolute;
+  bottom: -8px;
+  left: 50%;
+  transform: translateX(-50%);
+  border-left: 8px solid transparent;
+  border-right: 8px solid transparent;
+  border-top: 8px solid rgba(40, 40, 40, 0.9);
+}
+
+/* 모바일에서 대사 박스 */
+@media (max-width: 768px) {
+  .dialogue-box {
+    bottom: 140px;
+    font-size: 13px;
+    padding: 10px 18px;
+    max-width: 280px;
+  }
+
+  .npc-dialogue-box {
+    font-size: 10px;
+    padding: 6px 10px;
+  }
+}

@@ -9,6 +9,8 @@ import { InputManager } from './systems/InputManager'
 import { TouchController } from './systems/TouchController'
 import { AudioManager } from './systems/AudioManager'
 import { Minimap } from './systems/Minimap'
+import { DialogueSystem } from './systems/DialogueSystem'
+import { HorrorEffects } from './systems/HorrorEffects'
 
 export class Game {
   private canvas: HTMLCanvasElement
@@ -28,11 +30,14 @@ export class Game {
   private touchController!: TouchController
   private audioManager!: AudioManager
   private minimap!: Minimap
+  private dialogueSystem!: DialogueSystem
+  private horrorEffects!: HorrorEffects
   private isMobile: boolean = false
 
   private money: number = 0
   private lastEventMessage: string = ''
-  private eventMessageTimer: number = 0
+  private lastNicotineState: string = 'normal'
+  private wasBeingChased: boolean = false
 
   private canvasWidth = 960
   private canvasHeight = 640
@@ -73,6 +78,7 @@ export class Game {
     this.touchController = new TouchController(this.uiOverlay)
     this.isMobile = this.touchController.isTouchDevice()
     this.audioManager = new AudioManager()
+    this.dialogueSystem = new DialogueSystem()
 
     this.map = new GameMap()
     this.player = new Player(this.map.playerSpawn.x, this.map.playerSpawn.y)
@@ -81,6 +87,7 @@ export class Game {
     this.ui = new UI(this.uiOverlay)
     this.entityManager = new EntityManager(this.map)
     this.minimap = new Minimap(this.uiOverlay, this.map)
+    this.horrorEffects = new HorrorEffects(this.ctx, this.canvasWidth, this.canvasHeight)
 
     this.ui.showStartScreen(() => this.startGame())
   }
@@ -100,6 +107,8 @@ export class Game {
       this.touchController.show()
     }
     this.minimap.show()
+
+    this.dialogueSystem.onGameStart()
 
     this.gameLoop()
   }
@@ -130,18 +139,38 @@ export class Game {
     this.player.nicotine -= this.NICOTINE_DECAY_RATE * dt
     this.camera.follow(this.player.x, this.player.y)
 
-    const { arrested, eventMessage } = this.entityManager.update(dt, this.player, this.camera)
+    this.dialogueSystem.update(dt)
+
+    const { arrested, eventMessage, isBeingChased } = this.entityManager.update(dt, this.player, this.camera)
     if (arrested) this.player.isArrested = true
     if (eventMessage && eventMessage !== this.lastEventMessage) {
       this.lastEventMessage = eventMessage
       this.ui.showMessage(eventMessage, 3000)
     }
 
+    if (isBeingChased && !this.wasBeingChased) {
+      this.dialogueSystem.onPoliceChase()
+    }
+    this.wasBeingChased = isBeingChased || false
+
     const collectedButt = this.entityManager.checkButtCollection(this.player)
     if (collectedButt) {
       this.player.nicotine += collectedButt.nicotineAmount
       this.player.smoke()
       this.audioManager.play('collect')
+
+      const qualityType = collectedButt.quality.type as 'short' | 'normal' | 'long'
+      this.dialogueSystem.onButtCollected(qualityType)
+      this.horrorEffects.onButtCollected(qualityType)
+
+      setTimeout(() => {
+        this.dialogueSystem.onSmoked()
+      }, 800)
+    }
+
+    const rivalStolen = this.entityManager.checkRivalSteal()
+    if (rivalStolen) {
+      this.dialogueSystem.onRivalStoleButt()
     }
 
     const collectedMoney = this.entityManager.checkCoinCollection(this.player)
@@ -155,15 +184,48 @@ export class Game {
       if (shop.success) {
         this.money -= shop.cost
         this.player.nicotine += 50
+        this.player.smoke()
         this.audioManager.play('buy')
-        this.ui.showMessage('담배 구매!', 1500)
+        this.dialogueSystem.onShopBought()
+      } else if (shop.nearShop && this.money < shop.cost) {
+        this.dialogueSystem.onShopNoMoney()
       }
     }
+
+    this.checkNicotineState()
+
+    const nearestButt = this.entityManager.getNearestButt(this.player)
+    if (nearestButt && nearestButt.distance < 80) {
+      this.player.lookAt(nearestButt.x, nearestButt.y)
+    }
+
+    // 공포 효과 업데이트
+    this.horrorEffects.update(
+      dt,
+      this.player.nicotine,
+      nearestButt?.distance ?? null
+    )
 
     this.checkGameState()
     this.ui.updateNicotine(this.player.nicotine)
     this.ui.updateMoney(this.money)
+    this.ui.updateDialogue(
+      this.dialogueSystem.getCurrentDialogue(),
+      this.dialogueSystem.getDialogueProgress()
+    )
     this.minimap.render(this.player, this.map, this.entityManager.getEntitiesForMinimap())
+  }
+
+  private checkNicotineState(): void {
+    const nicotine = this.player.nicotine
+
+    if (nicotine < 15) {
+      this.dialogueSystem.onNicotineCritical()
+    } else if (nicotine < 30) {
+      this.dialogueSystem.onNicotineLow()
+    } else if (nicotine > 80) {
+      this.dialogueSystem.onNicotineHigh()
+    }
   }
 
   private checkGameState(): void {
@@ -204,5 +266,8 @@ export class Game {
     const screenX = this.player.x - this.camera.x
     const screenY = this.player.y - this.camera.y
     this.lighting.render(screenX, screenY, this.player.nicotine)
+
+    // 공포 효과 렌더링 (조명 위에)
+    this.horrorEffects.render()
   }
 }
