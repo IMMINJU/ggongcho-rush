@@ -1,0 +1,259 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  background-color: #0a0a0a;
+  overflow: hidden;
+  font-family: 'Courier New', monospace;
+}
+
+#game-container {
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+#game-canvas {
+  background-color: #1a1a2e;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+}
+
+#ui-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.nicotine-bar {
+  position: absolute;
+  bottom: 30px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 300px;
+  height: 20px;
+  background: rgba(0, 0, 0, 0.7);
+  border: 2px solid #444;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.nicotine-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #ff6b35, #f7c59f);
+  transition: width 0.3s ease;
+  box-shadow: 0 0 10px #ff6b35;
+}
+
+.nicotine-bar-label {
+  position: absolute;
+  bottom: 55px;
+  left: 50%;
+  transform: translateX(-50%);
+  color: #f7c59f;
+  font-size: 12px;
+  text-shadow: 1px 1px 2px black;
+}
+
+.game-message {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: #fff;
+  font-size: 24px;
+  text-align: center;
+  text-shadow: 2px 2px 4px black;
+  opacity: 0;
+  transition: opacity 0.5s ease;
+}
+
+.game-message.visible {
+  opacity: 1;
+}
+
+.ending-screen {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  background: rgba(0, 0, 0, 0.9);
+  opacity: 0;
+  transition: opacity 1s ease;
+  pointer-events: none;
+}
+
+.ending-screen.visible {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.ending-screen h1 {
+  font-size: 48px;
+  margin-bottom: 20px;
+}
+
+.ending-screen p {
+  font-size: 18px;
+  color: #888;
+  margin-bottom: 30px;
+  max-width: 400px;
+  line-height: 1.6;
+}
+
+.ending-screen button {
+  padding: 15px 40px;
+  font-size: 18px;
+  font-family: inherit;
+  background: #333;
+  color: #fff;
+  border: 2px solid #555;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.ending-screen button:hover {
+  background: #555;
+  border-color: #777;
+}
+
+.ending-withdrawal h1 { color: #8b0000; }
+.ending-arrested h1 { color: #4169e1; }
+.ending-liberation h1 { color: #f7c59f; }
+
+.hint-text {
+  position: absolute;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  color: #666;
+  font-size: 14px;
+}
+
+.start-screen {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  background: #0a0a0a;
+  z-index: 100;
+  pointer-events: auto;
+}
+
+.start-screen h1 {
+  font-size: 64px;
+  color: #f7c59f;
+  margin-bottom: 10px;
+  text-shadow: 0 0 20px rgba(255, 107, 53, 0.5);
+}
+
+.start-screen .subtitle {
+  font-size: 16px;
+  color: #666;
+  margin-bottom: 50px;
+  max-width: 300px;
+  text-align: center;
+  line-height: 1.6;
+}
+
+.start-screen button {
+  padding: 20px 60px;
+  font-size: 24px;
+  font-family: inherit;
+  background: transparent;
+  color: #f7c59f;
+  border: 2px solid #f7c59f;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.start-screen button:hover {
+  background: #f7c59f;
+  color: #0a0a0a;
+}
+
+/* 모바일 조이스틱 */
+.joystick-outer {
+  position: absolute;
+  bottom: 100px;
+  left: 40px;
+  width: 120px;
+  height: 120px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-radius: 50%;
+  pointer-events: auto;
+  touch-action: none;
+  display: none;
+}
+
+.joystick-inner {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 50px;
+  height: 50px;
+  background: rgba(247, 197, 159, 0.6);
+  border: 2px solid #f7c59f;
+  border-radius: 50%;
+}
+
+/* 모바일 반응형 */
+@media (max-width: 768px) {
+  .start-screen h1 {
+    font-size: 36px;
+  }
+
+  .start-screen .subtitle {
+    font-size: 14px;
+    max-width: 250px;
+  }
+
+  .start-screen button {
+    padding: 15px 40px;
+    font-size: 18px;
+  }
+
+  .nicotine-bar {
+    width: 200px;
+    bottom: 20px;
+  }
+
+  .nicotine-bar-label {
+    bottom: 45px;
+    font-size: 10px;
+  }
+
+  .hint-text {
+    font-size: 11px;
+  }
+
+  .ending-screen h1 {
+    font-size: 32px;
+  }
+
+  .ending-screen p {
+    font-size: 14px;
+    max-width: 280px;
+  }
+}
