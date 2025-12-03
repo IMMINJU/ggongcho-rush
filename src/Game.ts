@@ -41,7 +41,7 @@ export class Game {
 
   private setupResponsiveCanvas(): void {
     const maxWidth = window.innerWidth
-    const maxHeight = window.innerHeight
+    const maxHeight = window.visualViewport?.height || window.innerHeight
     const aspectRatio = 960 / 640
 
     let width = maxWidth
