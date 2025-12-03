@@ -7,6 +7,8 @@ import { UI } from './systems/UI'
 import { EntityManager } from './systems/EntityManager'
 import { InputManager } from './systems/InputManager'
 import { TouchController } from './systems/TouchController'
+import { AudioManager } from './systems/AudioManager'
+import { Minimap } from './systems/Minimap'
 
 export class Game {
   private canvas: HTMLCanvasElement
@@ -24,7 +26,13 @@ export class Game {
   private entityManager!: EntityManager
   private inputManager!: InputManager
   private touchController!: TouchController
+  private audioManager!: AudioManager
+  private minimap!: Minimap
   private isMobile: boolean = false
+
+  private money: number = 0
+  private lastEventMessage: string = ''
+  private eventMessageTimer: number = 0
 
   private canvasWidth = 960
   private canvasHeight = 640
@@ -64,6 +72,7 @@ export class Game {
     this.inputManager = new InputManager()
     this.touchController = new TouchController(this.uiOverlay)
     this.isMobile = this.touchController.isTouchDevice()
+    this.audioManager = new AudioManager()
 
     this.map = new GameMap()
     this.player = new Player(this.map.playerSpawn.x, this.map.playerSpawn.y)
@@ -71,6 +80,7 @@ export class Game {
     this.lighting = new Lighting(this.ctx, this.canvasWidth, this.canvasHeight)
     this.ui = new UI(this.uiOverlay)
     this.entityManager = new EntityManager(this.map)
+    this.minimap = new Minimap(this.uiOverlay, this.map)
 
     this.ui.showStartScreen(() => this.startGame())
   }
@@ -78,12 +88,18 @@ export class Game {
   private startGame(): void {
     this.state = 'playing'
     this.player.nicotine = 50
+    this.money = 0
     this.entityManager.init()
     this.lastTime = performance.now()
+
+    this.audioManager.init().then(() => {
+      this.audioManager.startBgm()
+    })
 
     if (this.isMobile) {
       this.touchController.show()
     }
+    this.minimap.show()
 
     this.gameLoop()
   }
@@ -113,16 +129,41 @@ export class Game {
     this.player.update(dt, input, this.map)
     this.player.nicotine -= this.NICOTINE_DECAY_RATE * dt
     this.camera.follow(this.player.x, this.player.y)
-    this.entityManager.update(dt, this.player, this.camera)
+
+    const { arrested, eventMessage } = this.entityManager.update(dt, this.player, this.camera)
+    if (arrested) this.player.isArrested = true
+    if (eventMessage && eventMessage !== this.lastEventMessage) {
+      this.lastEventMessage = eventMessage
+      this.ui.showMessage(eventMessage, 3000)
+    }
 
     const collectedButt = this.entityManager.checkButtCollection(this.player)
     if (collectedButt) {
       this.player.nicotine += collectedButt.nicotineAmount
       this.player.smoke()
+      this.audioManager.play('collect')
+    }
+
+    const collectedMoney = this.entityManager.checkCoinCollection(this.player)
+    if (collectedMoney > 0) {
+      this.money += collectedMoney
+      this.audioManager.play('coin')
+    }
+
+    if (input.interact) {
+      const shop = this.entityManager.checkShopInteraction(this.player, this.money)
+      if (shop.success) {
+        this.money -= shop.cost
+        this.player.nicotine += 50
+        this.audioManager.play('buy')
+        this.ui.showMessage('담배 구매!', 1500)
+      }
     }
 
     this.checkGameState()
     this.ui.updateNicotine(this.player.nicotine)
+    this.ui.updateMoney(this.money)
+    this.minimap.render(this.player, this.map, this.entityManager.getEntitiesForMinimap())
   }
 
   private checkGameState(): void {
@@ -140,6 +181,8 @@ export class Game {
     if (this.isMobile) {
       this.touchController.hide()
     }
+    this.minimap.hide()
+    this.audioManager.stopBgm()
     this.ui.showEnding(ending, () => {
       location.reload()
     })
