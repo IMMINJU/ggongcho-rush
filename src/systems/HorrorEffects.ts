@@ -68,7 +68,7 @@ export class HorrorEffects {
   }
 
   private triggerWithdrawalHallucination(): void {
-    const effects: HorrorEffect[] = ['spiral_eyes']
+    const effects: HorrorEffect[] = ['spiral_eyes', 'reaching_hands']
     this.activeEffect = effects[Math.floor(Math.random() * effects.length)]
     this.effectDuration = 2 + Math.random() * 1.5
     this.effectTimer = 0
@@ -92,7 +92,7 @@ export class HorrorEffects {
   }
 
   private triggerRandom(): void {
-    const effects: HorrorEffect[] = ['peripheral_figure']
+    const effects: HorrorEffect[] = ['peripheral_figure', 'blink_face', 'wrong_reflection']
     this.activeEffect = effects[Math.floor(Math.random() * effects.length)]
     this.effectDuration = 0.4 + Math.random() * 0.3
     this.effectTimer = 0
@@ -111,6 +111,9 @@ export class HorrorEffects {
       case 'spiral_eyes':
         this.renderSpiralEyes(alpha, progress)
         break
+      case 'reaching_hands':
+        this.renderReachingHands(alpha, progress)
+        break
       case 'hungry_stare':
         this.renderHungryStare(alpha, progress)
         break
@@ -119,6 +122,12 @@ export class HorrorEffects {
         break
       case 'peripheral_figure':
         this.renderPeripheralFigure(alpha, progress)
+        break
+      case 'blink_face':
+        this.renderBlinkFace(alpha, progress)
+        break
+      case 'wrong_reflection':
+        this.renderWrongReflection(alpha, progress)
         break
     }
 
@@ -204,6 +213,52 @@ export class HorrorEffects {
       const offset = -size - 10 - i * 8
       this.ctx.beginPath()
       this.ctx.ellipse(x, y + offset + size, size + 10, 15, 0, 0.2, Math.PI - 0.2)
+      this.ctx.stroke()
+    }
+  }
+
+  // 뻗어오는 손들
+  private renderReachingHands(alpha: number, progress: number): void {
+    this.ctx.fillStyle = `rgba(10, 5, 5, ${alpha * 0.7})`
+    this.ctx.fillRect(0, 0, this.width, this.height)
+
+    // 화면 하단에서 올라오는 여러 손
+    const handCount = 7
+
+    for (let i = 0; i < handCount; i++) {
+      const x = (this.width / (handCount + 1)) * (i + 1)
+      const baseY = this.height + 100 - progress * 250
+      this.drawReachingHand(x, baseY, alpha, i)
+    }
+  }
+
+  private drawReachingHand(x: number, y: number, alpha: number, seed: number): void {
+    this.ctx.strokeStyle = `rgba(120, 100, 90, ${alpha})`
+    this.ctx.lineWidth = 3
+
+    const sway = Math.sin(this.effectTimer * 3 + seed) * 15
+
+    // 팔
+    this.ctx.beginPath()
+    this.ctx.moveTo(x + sway, y + 200)
+    this.ctx.quadraticCurveTo(x + sway * 0.5, y + 100, x, y)
+    this.ctx.stroke()
+
+    // 손가락들 (길고 뒤틀린)
+    this.ctx.strokeStyle = `rgba(140, 120, 100, ${alpha})`
+    this.ctx.lineWidth = 2
+    for (let i = 0; i < 5; i++) {
+      const fingerAngle = -0.5 + i * 0.25
+      const fingerLength = 40 + (seed + i) % 3 * 15
+      const fingerSway = Math.sin(this.effectTimer * 5 + i + seed) * 5
+      this.ctx.beginPath()
+      this.ctx.moveTo(x, y)
+      this.ctx.quadraticCurveTo(
+        x + Math.sin(fingerAngle) * fingerLength * 0.5 + fingerSway,
+        y - fingerLength * 0.5,
+        x + Math.sin(fingerAngle + 0.2) * fingerLength,
+        y - fingerLength
+      )
       this.ctx.stroke()
     }
   }
@@ -959,6 +1014,9 @@ export class HorrorEffects {
 
 type HorrorEffect =
   | 'spiral_eyes'
+  | 'reaching_hands'
   | 'hungry_stare'
   | 'too_wide_smile'
   | 'peripheral_figure'
+  | 'blink_face'
+  | 'wrong_reflection'
