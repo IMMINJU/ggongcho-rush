@@ -4,6 +4,9 @@
 
 **[플레이하기](https://ggongcho-rush.vercel.app/)**
 
+![title](screenshots/title.png)
+![ingame](screenshots/ingame.png)
+
 ## 컨셉
 
 돈 없는 니코틴 중독자가 되어 거리에서 꽁초를 주워 금단 증상을 버틴다. 니코틴 게이지가 0%면 금단으로 쓰러지고, 100%에 도달하면 "해방"된다. 해방의 의미는 플레이어가 직접 확인해야 한다.
